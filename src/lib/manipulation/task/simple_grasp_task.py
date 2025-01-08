@@ -8,7 +8,7 @@ import json
 from manipulation.simulation_object import SceneObject, is_overlapping
 from transform.affine import Affine
 from transform.random import sample_pose_from_segment
-from src.scripts_bullet.CoordinateManager import CoordinateManager
+
 
 class GraspObjectFactory:
     def __init__(self, objects_root: str, object_types: Union[List[str], None] = None):
@@ -101,14 +101,8 @@ class GraspTaskFactory:
         new_t_bounds = np.array(self.t_bounds)
         new_t_bounds[:2, 0] = new_t_bounds[:2, 0] + min_dist
         new_t_bounds[:2, 1] = new_t_bounds[:2, 1] - min_dist
-        ########################################
-        # Hier wird Koordinate für create_task() erstellt
-        ########################################
-        manager = CoordinateManager()
         while overlapping:
-            position = manager.get_coordinates()
-            print(position)
-            random_pose = Affine(position)
+            random_pose = Affine.random(t_bounds=new_t_bounds, r_bounds=self.r_bounds)
             overlapping = is_overlapping(random_pose, min_dist, objects)
         return random_pose
 
