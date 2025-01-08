@@ -38,7 +38,11 @@ def main(cfg: DictConfig) -> None:
     # Kamera-Setup
     t_center = np.mean(t_bounds, axis=1)
     camera_factory = instantiate(cfg.camera_factory, bullet_client=bullet_client, t_center=t_center)
-
+    manager = CoordinateManager()
+    spawn_position = [0.6, 0.0, 0.0] 
+    print("set coordinates")
+    manager.set_coordinates(spawn_position)  # <--- Definierte Position (x, y)
+    print("done")
     # Anzahl der Szenen
     for i in range(cfg.n_scenes):
         # Roboter zurücksetzen
@@ -46,18 +50,17 @@ def main(cfg: DictConfig) -> None:
         robot.gripper.open()
 
         # Task anlegen – aber NICHT zufällige Objekte spawnen
-        task = task_factory.create_task()
+       
         # task.setup(env)  # AUSKOMMENTIERT, damit keine zufälligen Objekte erzeugt werden
 
-        spawn_position = [0.6, 0.0, 0.0] 
+        
 
         # Feste, eigene URDF laden und spawnen
         object_path = "/home/jovyan/data/assets/objects/cube/object.urdf"      # <--- Pfad zum eigenen Objekt anpassen
-        manager = CoordinateManager()
-        print("set coordinates")
-        manager.set_coordinates(spawn_position)  # <--- Definierte Position (x, y)
-        print("done")
-
+        
+        
+        task = task_factory.create_task()
+        task.setup(env)
         #spawn_position = [0.6, 0.0, 0.0]        # <--- Definierte Position (x, y, z)
         spawn_orientation = [0.0, 0.0, 0.0, 1]  # <--- Quaternion (x, y, z, w)
         object_id = bullet_client.loadURDF(

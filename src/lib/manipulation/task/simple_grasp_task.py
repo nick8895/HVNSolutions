@@ -104,8 +104,8 @@ class GraspTaskFactory:
         ########################################
         # Hier wird Koordinate für create_task() erstellt
         ########################################
+        manager = CoordinateManager()
         while overlapping:
-            manager = CoordinateManager()
             position = manager.get_coordinates()
             print(position)
             random_pose = Affine(position)
