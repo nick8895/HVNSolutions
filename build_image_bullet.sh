@@ -1,6 +1,6 @@
 #!/bin/bash
 
-render=base
+render=nvidia
 uid=$(eval "id -u")
 gid=$(eval "id -g")
 
