@@ -101,9 +101,10 @@ class GraspTaskFactory:
         new_t_bounds = np.array(self.t_bounds)
         new_t_bounds[:2, 0] = new_t_bounds[:2, 0] + min_dist
         new_t_bounds[:2, 1] = new_t_bounds[:2, 1] - min_dist
-        while overlapping:
-            random_pose = Affine.random(t_bounds=new_t_bounds, r_bounds=self.r_bounds)
-            overlapping = is_overlapping(random_pose, min_dist, objects)
+        #while overlapping:
+        random_pose = Affine([0.7, 0.0, -0.025])
+        print(random_pose)
+        overlapping = is_overlapping(random_pose, min_dist, objects)
         return random_pose
 
 
