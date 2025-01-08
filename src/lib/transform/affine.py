@@ -30,7 +30,7 @@ class Affine:
 
     @classmethod
     def random(cls,
-               t_bounds=((0, 1), (0, 1), (0, 1)),
+               t_bounds=((0, 0), (0, 0), (0, 0)),
                r_bounds=((0, 2 * np.pi), (0, 2 * np.pi), (0, 2 * np.pi)),
                allow_zero_translation=True,
                allow_zero_rotation=True):
