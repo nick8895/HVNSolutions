@@ -14,6 +14,84 @@ from transform.affine import Affine
 # bleibe bei diesen Imports. Andernfalls anpassen oder entfernen.
 from image_util import draw_pose
 from data_util import store_data_grasp
+import math
+
+def plan_1(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
+    """
+    Spawnt zwei Würfel nebeneinander mit 0,5 cm Offset und auf diesen Würfeln jeweils einen weiteren Würfel.
+    Zusätzlich wird ein Quader (10x5x5) auf die oberen Würfel platziert.
+    :param bullet_client: Bullet-Client zum Spawnen der Objekte.
+    :param base_position: Basisposition als Liste [x, y, z].
+    :param rotation: Rotation in Grad um die Z-Achse.
+    :param cube_urdf: Pfad zur URDF-Datei des Würfels.
+    :param quader_urdf: Pfad zur URDF-Datei des Quaders.
+    """
+    # Maße und Offset
+    cube_size = 5  # Würfelgröße in cm
+    quader_size = (10, 5, 5)  # Quadergröße in cm (Länge, Breite, Höhe)
+    offset = 0.5  # Offset in cm
+
+    # Konvertiere Rotation in Radiant
+    rad = math.radians(rotation)
+    cos_theta = math.cos(rad)
+    sin_theta = math.sin(rad)
+
+    def rotate(x, y):
+        """Rotiert die Koordinaten (x, y) um die Z-Achse."""
+        return (
+            x * cos_theta - y * sin_theta,
+            x * sin_theta + y * cos_theta
+        )
+
+    def quaternion_from_rotation_z(angle_rad):
+        """Erstellt einen Quaternion basierend auf einer Rotation um die Z-Achse."""
+        half_angle = angle_rad / 2.0
+        return [0.0, 0.0, math.sin(half_angle), math.cos(half_angle)]
+
+    # Positionen relativ zur Basisposition
+    positions = [
+        (0, 0, 0),  # Erster Würfel
+        (cube_size + offset, 0, 0),  # Zweiter Würfel daneben
+        (0, 0, cube_size + offset),  # Würfel auf erstem Würfel
+        (cube_size + offset, 0, cube_size + offset),  # Würfel auf zweitem Würfel
+    ]
+
+    # Spawne die Würfel an den berechneten Positionen
+    object_ids = []
+    for pos in positions:
+        rel_x, rel_y, rel_z = pos
+        rotated_x, rotated_y = rotate(rel_x, rel_y)
+        spawn_position = [
+            base_position[0] + rotated_x / 100,  # Von cm zu m
+            base_position[1] + rotated_y / 100,  # Von cm zu m
+            base_position[2] + rel_z / 100       # Von cm zu m
+        ]
+        spawn_orientation = quaternion_from_rotation_z(rad)  # Orientierung angepasst an die Rotation
+        object_id = bullet_client.loadURDF(
+            cube_urdf,
+            spawn_position,
+            spawn_orientation
+        )
+        object_ids.append(object_id)
+
+    # Position für den Quader berechnen
+    quader_x = (cube_size + offset) / 2  # Zentriere den Quader auf die beiden oberen Würfel
+    quader_z = 2 * (cube_size + offset)  # Höhe über den oberen Würfeln
+    rotated_x, rotated_y = rotate(quader_x, 0)
+    quader_position = [
+        base_position[0] + rotated_x / 100,  # Von cm zu m
+        base_position[1] + rotated_y / 100,  # Von cm zu m
+        base_position[2] + quader_z / 100   # Von cm zu m
+    ]
+    quader_orientation = quaternion_from_rotation_z(rad)
+    quader_id = bullet_client.loadURDF(
+        quader_urdf,
+        quader_position,
+        quader_orientation
+    )
+    object_ids.append(quader_id)
+
+    return object_ids
 
 
 @hydra.main(version_base=None, config_path="config", config_name="tn_train_data")
@@ -40,7 +118,8 @@ def main(cfg: DictConfig) -> None:
     t_center = np.mean(t_bounds, axis=1)
     camera_factory = instantiate(cfg.camera_factory, bullet_client=bullet_client, t_center=t_center)
 
-    # Anzahl der zu generierenden Szenen
+
+
     for i in range(cfg.n_scenes):
         # Roboter initialisieren
         robot.home()
@@ -51,15 +130,22 @@ def main(cfg: DictConfig) -> None:
         # task.setup(env)  # AUSKOMMENTIERT, um das zufällige Spawnen zu verhindern
 
         # Feste Objekte manuell in die Szene laden
-        object_path = "/home/jovyan/data/assets/objects/cube/object.urdf"      # Anpassen: Pfad zu deinem URDF
-        spawn_position = [0.7, 0.0, 0.0]        # Anpassen: (x, y, z)
-        spawn_orientation = [0.0, 0.0, 0.0, 1]  # Quaternion (x, y, z, w)
-        object_id = bullet_client.loadURDF(
-            object_path,
-            spawn_position,
-            spawn_orientation
-        )
+        cube_urdf = "/home/jovyan/data/assets/objects/cube/object.urdf"      # Anpassen: Pfad zu deinem URDF
+        quader_urdf_path = "/home/jovyan/data/assets/objects/quader/object.urdf"  # Anpassen: Pfad zu deinem URDF
 
+
+        spawn_position = [0.7, 0.0, 0.0]        # Anpassen: (x, y, z)
+        spawn_orientation = [0.0, 0.0, 0.0, 0.1]  # Quaternion (x, y, z, w)
+
+        #NACHHER GGF LÖSCHEN 
+        #object_id = bullet_client.loadURDF(
+       #     cube_urdf,
+        #    spawn_position,
+        #    spawn_orientation
+        #)
+        object_ids = plan_1(bullet_client, spawn_position, 45, cube_urdf, quader_urdf_path)  
+
+        
         # Hole ggf. Task-Infos (falls dein Oracle das braucht)
         task_info = task.get_info()
 
@@ -111,7 +197,7 @@ def main(cfg: DictConfig) -> None:
 
         # Das manuell geladene Objekt entfernen, 
         # um die nächste Szene "leer" zu starten (optional).
-        bullet_client.removeBody(object_id)
+        #bullet_client.removeBody(object_id)
 
     # PyBullet-Session beenden
     cv2.destroyAllWindows()
