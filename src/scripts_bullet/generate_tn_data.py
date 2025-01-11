@@ -14,6 +14,7 @@ from transform.affine import Affine
 from image_util import draw_pose
 from data_util import store_data_grasp
 
+j = 1 # Globaler Zähler für die Bildreihenfolge
 
 def plan_1(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
     """
@@ -74,6 +75,73 @@ def plan_1(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
 
     return object_ids
 
+def plan_2(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
+    """
+    Ähnlich wie plan_1, aber baut einen "Torbogen" aus 4 Würfeln und 1 Quader:
+    - 2 Türme je 2 Würfel
+    - Quader oben als Brücke
+    Rückgabe: Liste [ [obj_id, pos, ori], ... ]
+    """
+    cube_size = 5.0  # cm
+    offset = 0.1     # cm (kleiner Spalt)
+    gap = 4.0        # cm Abstand zwischen den beiden Türmen
+    quader_size = (10, 5, 5)  # cm (Länge x Breite x Höhe)
+
+    # Wir rotieren um die Z-Achse um "rotation" Grad
+    rad = math.radians(rotation)
+    cos_theta = math.cos(rad)
+    sin_theta = math.sin(rad)
+
+    def rotate(x, y):
+        return (x * cos_theta - y * sin_theta,
+                x * sin_theta + y * cos_theta)
+
+    def quaternion_from_rotation_z(angle_rad):
+        half_angle = angle_rad / 2.0
+        return [0.0, 0.0, math.sin(half_angle), math.cos(half_angle)]
+
+    # --- Positionen definieren ---
+    # Linker Turm: unten / oben
+    left_bottom  = (0,           0,            0)
+    left_top     = (0,           0,            cube_size + offset)  
+    # Rechter Turm: unten / oben
+    right_bottom = (cube_size + gap, 0,         0)
+    right_top    = (cube_size + gap, 0,         cube_size + offset)
+    # Quader oben in der Mitte (10 cm lang, soll mit 2,5 cm auf jedem Turm aufliegen)
+    # => Die x-Position der Mitte vom Quader = (0 + (cube_size+gap)) / 2
+    #                                          = (5 + gap=5) / 2 = 5 cm
+    # => Quader-Höhe = 5 cm; Wir legen ihn auf die Oberkante der Würfel (z = 5 + offset).
+    #    Unterkante Quader = 5 + offset, sein center => + quader_size[2]/2
+    #    => centerZ = 5 + offset + (5/2) = 5 + 0.1 + 2.5 = 7.6 cm
+    quader_center_x = (0 + (cube_size + gap)) / 2.0  
+    quader_center_z = (cube_size + offset) + (quader_size[2] / 2.0)
+    top_quader = (quader_center_x, 0, quader_center_z)
+
+    positions = [left_bottom, left_top, right_bottom, right_top, top_quader]
+
+    # --- Würfel oder Quader? ---
+    # Index 0..3 = Würfel, Index 4 = Quader
+    object_ids = []
+    for i, pos in enumerate(positions):
+        rel_x, rel_y, rel_z = pos
+        rx, ry = rotate(rel_x, rel_y)
+        spawn_position = [
+            base_position[0] + rx/100.0,  
+            base_position[1] + ry/100.0,  
+            base_position[2] + rel_z/100.0
+        ]
+        spawn_orientation = quaternion_from_rotation_z(rad)
+
+        if i < 4:
+            # Würfel
+            obj_id = bullet_client.loadURDF(cube_urdf, spawn_position, spawn_orientation)
+        else:
+            # Quader
+            obj_id = bullet_client.loadURDF(quader_urdf, spawn_position, spawn_orientation)
+
+        object_ids.append([obj_id, spawn_position, spawn_orientation])
+
+    return object_ids
 
 def minimal_angle(angle_deg: float) -> float:
     """
@@ -88,7 +156,8 @@ def get_yaw_from_quat(qx, qy, qz, qw) -> float:
     return minimal_angle(yaw)
 
 
-def pick_and_place_object(bullet_client, robot, obj_pos, obj_ori, place_position, _rotation):
+def pick_and_place_object(bullet_client, robot, obj_pos, obj_ori, place_position, _rotation, j, task_info, observations, pose,
+                           dataset_directory, store_dataset, camera_factory):
     """
     Greift das Objekt so, dass seine Yaw orientiert wird wie obj_ori (minimaler Drehweg),
     und legt es dann bei place_position ab.
@@ -133,15 +202,48 @@ def pick_and_place_object(bullet_client, robot, obj_pos, obj_ori, place_position
     place_pose        = place_pose_affine * place_offset
 
     # Robot move
+        
+
+    if store_dataset:
+        store_data_grasp(j, task_info, observations, pose, dataset_directory)
+        j += 1
     robot.ptp(pre_grasp_pose)
+
+    observations = [cam.get_observation() for cam in camera_factory]
+    if store_dataset:
+        store_data_grasp(j, task_info, observations, pose, dataset_directory)
+        j += 1
     robot.lin(grasp_pose)
     robot.gripper.close()
+
+    observations = [cam.get_observation() for cam in camera_factory]
+    if store_dataset:
+        store_data_grasp(j, task_info, observations, pose, dataset_directory)
+        j += 1
     robot.lin(pre_grasp_pose)
 
+    observations = [cam.get_observation() for cam in camera_factory]
+    if store_dataset:
+        store_data_grasp(j, task_info, observations, pose, dataset_directory)
+        j += 1
     robot.ptp(pre_place_pose)
+
+    observations = [cam.get_observation() for cam in camera_factory]
+    if store_dataset:
+        store_data_grasp(j, task_info, observations, pose, dataset_directory)
+        j += 1
     robot.lin(place_pose)
     robot.gripper.open()
+
+    observations = [cam.get_observation() for cam in camera_factory]
+    if store_dataset:
+        store_data_grasp(j, task_info, observations, pose, dataset_directory)
+        j += 1
     robot.lin(pre_place_pose)
+    observations = [cam.get_observation() for cam in camera_factory]
+    if store_dataset:
+        store_data_grasp(j, task_info, observations, pose, dataset_directory)
+        j += 1
 
 
 def quaternion_from_rotation_z(angle_rad):
@@ -149,7 +251,7 @@ def quaternion_from_rotation_z(angle_rad):
     return [0.0, 0.0, math.sin(half_angle), math.cos(half_angle)]
 
 
-def cleanup_grasp_task(bullet_client, robot, task, base_drop_position, rotation):
+def cleanup_grasp_task(bullet_client, robot, task, base_drop_position, rotation,i, task_info, observations, pose, dataset_directory, store_dataset, camera_factory):
     """
     Greift alle Objekte in umgekehrter Reihenfolge und legt sie an base_drop_position ab,
     parallel zur Y-Achse versetzt.
@@ -177,7 +279,14 @@ def cleanup_grasp_task(bullet_client, robot, task, base_drop_position, rotation)
             obj_pos,
             obj_ori,
             drop_position,
-            rotation
+            rotation,
+            i,
+            task_info,
+            observations,
+            pose,
+            dataset_directory,
+            store_dataset,
+            camera_factory
         )
 
     robot.gripper.open()
@@ -214,7 +323,7 @@ def main(cfg: DictConfig) -> None:
     for i in range(cfg.n_scenes):
 
         # Erzeuge Szene
-        object_ids = plan_1(
+        object_ids = plan_2(
             bullet_client,
             spawn_position,
             rotation,
@@ -241,7 +350,7 @@ def main(cfg: DictConfig) -> None:
 
         # Alle Objekte in einer Reihe ablegen
         drop_position = [0.4, -0.2, 0.0]
-        cleanup_grasp_task(bullet_client, robot, task, drop_position, rotation)
+        
 
         # (Optional) Infos/Oracle
         task_info = task.get_info()
@@ -249,23 +358,22 @@ def main(cfg: DictConfig) -> None:
 
         # Kamerabilder
         observations = [cam.get_observation() for cam in camera_factory.cameras]
-
-        # Speichern?
-        if cfg.store_dataset:
-            store_data_grasp(i, task_info, observations, pose, cfg.dataset_directory)
+        cleanup_grasp_task(bullet_client, robot, task, drop_position, rotation,i,
+                            task_info, observations, pose, cfg.dataset_directory, cfg.store_dataset, camera_factory.cameras)
+    
 
         # Debug/Visualisierung
         if cfg.debug:
             image_copy = copy.deepcopy(observations[0]['rgb'])
             depth_copy = copy.deepcopy(observations[0]['depth'])
             draw_pose(observations[0]['extrinsics'], pose, observations[0]['intrinsics'], image_copy)
-            cv2.imshow('rgb', image_copy)
+            #cv2.imshow('rgb', image_copy)
             depth_copy = depth_copy / 2.0
-            cv2.imshow('depth', depth_copy)
+            #cv2.imshow('depth', depth_copy)
 
-            key_pressed = cv2.waitKey(0)
-            if key_pressed == ord('q'):
-                break
+            #key_pressed = cv2.waitKey(0)
+            #if key_pressed == ord('q'):
+            #    break
 
         # Task entfernen
         task.clean(env)
