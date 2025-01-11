@@ -6,6 +6,7 @@ from omegaconf import DictConfig
 from hydra.utils import instantiate
 import copy
 import cv2
+from scipy.spatial.transform import Rotation as R
 
 from bullet_env.util import setup_bullet_client, stdout_redirected
 from transform.affine import Affine
@@ -56,7 +57,7 @@ def plan_1(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
         ]
         spawn_orientation = quaternion_from_rotation_z(rad)
         obj_id = bullet_client.loadURDF(cube_urdf, spawn_position, spawn_orientation)
-        object_ids.append(obj_id)
+        object_ids.append([obj_id, spawn_position, spawn_orientation])
 
     # Quader oben drauf
     quader_x = (cube_size + offset) / 2.0  
@@ -69,93 +70,142 @@ def plan_1(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
     ]
     quader_orientation = quaternion_from_rotation_z(rad)
     quader_id = bullet_client.loadURDF(quader_urdf, quader_position, quader_orientation)
-    object_ids.append(quader_id)
+    object_ids.append([obj_id, spawn_position, spawn_orientation])
 
+    #print("Objekt 1")
+    #print(object_ids[0][0])
+    #print(object_ids[0][1])
+    #print(object_ids[0][2])
+
+    #print("Objekt 2")
+    #print(object_ids[1][0])
+    #print(object_ids[1][1])
+    #print(object_ids[1][2])
+
+    #print("Objekt 3")
+    #print(object_ids[2][0])
+    #print(object_ids[2][1])
+    #print(object_ids[2][2])
+
+    #print("Objekt 4")
+    #print(object_ids[3][0])
+    #print(object_ids[3][1])
+    #print(object_ids[3][2])
+
+    #print("Objekt 5")
+    #print(object_ids[4][0])
+    #print(object_ids[4][1])
+    #print(object_ids[4][2])
     return object_ids
 
-def pick_and_place_object(bullet_client, robot, object_id, place_position, rotation):
+def pick_and_place_object(bullet_client, robot, obj_pos, obj_ori, place_position, rotation):
     """
     Greift das Objekt mit einer einfachen "Pick von oben"-Pose und legt es an der place_position ab.
     :param bullet_client: PyBullet-Client
-    :param robot: Roboterobjekt (muss PTP, LIN, gripper.open(), .close() etc. unterstützen)
-    :param object_id: Die ID des zu greifenden Objekts
+    :param robot: Roboterobjekt
+    :param obj_pos: Position des Objekts [x, y, z]
+    :param obj_ori: (ALT) Orientierung des Objekts, wird aber jetzt ignoriert, weil wir "von oben" greifen
     :param place_position: [x, y, z] in Metern, wo das Objekt abgelegt werden soll
+    :param rotation: Rotation um die z-Achse (in Grad)
     """
+import math
+from scipy.spatial.transform import Rotation as R
 
-    # Hole aktuelle Objektposition und -orientierung
-    obj_pos, obj_ori = bullet_client.getBasePositionAndOrientation(Affine(object_id))
+def pick_and_place_object(bullet_client, robot, obj_pos, obj_ori, place_position, rotation):
+    """
+    Greift das Objekt mit einer "Top-down"-Pose, wobei wirklich um die globale Z rotiert wird.
+    """
+    # 1) Basis-Rotation, damit der Endeffektor tatsächlich nach unten zeigt
+    #    (Anpassen, falls Ihr Roboter anders orientiert ist!)
+    base_rot = R.from_euler('XYZ', [180, 0, 0], degrees=True)
 
-    rad = math.radians(rotation)
+    # 2) Gewünschte z-Achs-Drehung (in Weltkoordinaten)
+    z_rot = R.from_euler('Z', rotation, degrees=True)
 
-    # Einfache "von oben" Greif-Orientierung (Identity / z-Achse nach unten)
-    # Falls dein Roboter eine bestimmte Ausrichtung braucht, hier anpassen:
-    pick_orientation = quaternion_from_rotation_z(rad)
+    # 3) Kombinieren
+    final_rot = base_rot * z_rot
+    final_quat = final_rot.as_quat()
+
+    # 4) Affine aufbauen
+    z_affine = Affine(rotation=final_quat)
+    obj_pose_affine = Affine(translation=obj_pos) * z_affine
 
     # Pre-/Post-Grasp-Offsets
-    pre_grasp_offset_z = 0.20  # 20 cm über dem Objekt
-    grasp_offset_z = 0.02      # 2 cm über Objektmittelpunkt
-    place_offset_z = 0.02      # 2 cm über Ablageposition
+    pre_grasp_offset = Affine(translation=[0, 0, -0.20])  # 20 cm über dem Objekt
+    grasp_offset     = Affine(translation=[0, 0, -0.02])  # 2 cm über dem Greifpunkt
+    place_offset     = Affine(translation=[0, 0, -0.02])  # 2 cm über der Ablageposition
 
-    # Greif-Pose definieren (wir nehmen an: x, y unverändert, z + offset)
-    pre_grasp_pose = Affine([
-        obj_pos[0],
-        obj_pos[1],
-        obj_pos[2] + pre_grasp_offset_z
-    ], pick_orientation)
+    # Greif-Pose
+    pre_grasp_pose = obj_pose_affine * pre_grasp_offset
+    grasp_pose = obj_pose_affine * grasp_offset
 
-    grasp_pose = Affine([
-        obj_pos[0],
-        obj_pos[1],
-        obj_pos[2] + grasp_offset_z
-    ], pick_orientation)
+    # Ablage-Pose
+    place_pose_affine = Affine(translation=place_position) * z_affine
+    pre_place_pose = place_pose_affine * pre_grasp_offset
+    place_pose = place_pose_affine * place_offset
 
-    # Platzier-Pose
-    pre_place_pose = Affine([
-        place_position[0],
-        place_position[1],
-        place_position[2] + pre_grasp_offset_z
-    ], pick_orientation)
-
-    place_pose = Affine([
-        place_position[0],
-        place_position[1],
-        place_position[2] + place_offset_z
-    ], pick_orientation)
-
-    # 1) Zum Pre-Grasp-Punkt fahren
+    # Bewegungsabfolge
     robot.ptp(pre_grasp_pose)
-    # 2) Gerade runter zum Grasp-Punkt
     robot.lin(grasp_pose)
-    # 3) Greifer schließen
     robot.gripper.close()
-    # 4) Objekt anheben (zurück zum Pre-Grasp)
     robot.lin(pre_grasp_pose)
 
-    # 5) Über Ablage-Position fliegen
     robot.ptp(pre_place_pose)
-    # 6) Gerade runter zur Ablage
     robot.lin(place_pose)
-    # 7) Greifer öffnen
     robot.gripper.open()
-    # 8) Wieder nach oben
     robot.lin(pre_place_pose)
 
-    def quaternion_from_rotation_z(angle_rad):
-        half_angle = angle_rad / 2.0
-        return [0.0, 0.0, math.sin(half_angle), math.cos(half_angle)]
 
-def cleanup_plan_1(bullet_client, object_ids, robot, drop_position, rotation):
+def quaternion_from_rotation_z(angle_rad):
+    half_angle = angle_rad / 2.0
+    return [0.0, 0.0, math.sin(half_angle), math.cos(half_angle)]
+
+def cleanup_grasp_task(bullet_client, robot, task, base_drop_position, rotation):
     """
-    Baut die in plan_1 generierten Objekte nacheinander (von oben nach unten) ab
-    und legt sie an einer definierten Position ab.
-    :param bullet_client: Instanz des PyBullet-Clients
-    :param object_ids: Liste von Objekt-IDs (0..3 = Würfel, 4 = Quader) 
+    Greift alle Objekte in umgekehrter Reihenfolge und legt sie an der definierten Basisposition ab.
+    :param bullet_client: PyBullet-Client
     :param robot: Roboterobjekt
-    :param drop_position: [x, y, z] in Metern, wo die Objekte abgelegt werden
+    :param task: GraspTask mit den zu bewegenden Objekten
+    :param base_drop_position: [x, y, z] der Basisposition für die Ablage
+    :param rotation: Rotation um die z-Achse in Grad
     """
-    # Gehe in umgekehrter Reihenfolge (von oben nach unten) durch alle Objekte
-    for obj_id in reversed(object_ids):
-        pick_and_place_object(bullet_client, robot, obj_id, drop_position, rotation)
+    # Offset für die Ablage (jedes Objekt wird leicht versetzt abgelegt)
+    x_offset = 0.05
+
+    for i, grasp_obj in enumerate(reversed(task.grasp_objects)):
+        # Zielposition für die Ablage (mit Offset)
+        drop_position = [
+            base_drop_position[0] + i * x_offset,
+            base_drop_position[1],
+            base_drop_position[2]
+        ]
+
+        # Translation und Orientierung aus grasp_obj.pose extrahieren
+        obj_pos = grasp_obj.pose[:3, 3]                 # => numpy-Array, z.B. [x, y, z]
+        rotation_matrix = grasp_obj.pose[:3, :3]
+        obj_ori = R.from_matrix(rotation_matrix).as_quat()  # => [qx, qy, qz, qw]
+
+
+        print("Objekt-Position:", obj_pos)
+        print("Objekt-Orientierung:", obj_ori)
+        print("Ablage-Position:", drop_position)
+
+
+        # Roboteransteuerung
+        pick_and_place_object(
+            bullet_client, 
+            robot, 
+            obj_pos,      # Affine Translation des Objekts
+            obj_ori,      # Affine Rotation des Objekts
+            drop_position,
+            rotation
+        )
+
+    # Greifer öffnen
+    robot.gripper.open()
+
+
+
 
 @hydra.main(version_base=None, config_path="config", config_name="tn_train_data")
 def main(cfg: DictConfig) -> None:
@@ -181,24 +231,30 @@ def main(cfg: DictConfig) -> None:
     t_center = np.mean(t_bounds, axis=1)
     camera_factory = instantiate(cfg.camera_factory, bullet_client=bullet_client, t_center=t_center)
 
+    # Feste Objekte manuell in die Szene laden
+    cube_urdf = "/home/jovyan/data/assets/objects/cube/object.urdf"
+    quader_urdf_path = "/home/jovyan/data/assets/objects/quader/object.urdf"
+
+    # Basisposition und Rotation
+    spawn_position = [0.7, 0.0, 0.0]  # [x, y, z] in Metern
+    rotation = 90                    # Drehung um Z-Achse in Grad
+
+    # Erzeuge die Szene
+    object_ids = plan_1(
+        bullet_client,
+        spawn_position,
+        rotation,
+        cube_urdf,
+        quader_urdf_path
+    )
+
+
     for i in range(cfg.n_scenes):
         # Roboter initialisieren
         robot.home()
         robot.gripper.open()
 
-        # Task erstellen (aber NICHT die zufälligen Objekte spawnen!)
-        task = task_factory.create_task()
-        # task.setup(env)  # Deaktiviert, damit keine zufälligen Objekte gespawnt werden
-
-        # Feste Objekte manuell in die Szene laden
-        cube_urdf = "/home/jovyan/data/assets/objects/cube/object.urdf"
-        quader_urdf_path = "/home/jovyan/data/assets/objects/quader/object.urdf"
-
-        # Basisposition und Rotation
-        spawn_position = [0.7, 0.0, 0.0]  # [x, y, z] in Metern
-        rotation = 90                    # Drehung um Z-Achse in Grad
-
-        # Erzeuge die Szene
+        #Objekte per plan_1 erzeugen
         object_ids = plan_1(
             bullet_client,
             spawn_position,
@@ -206,6 +262,41 @@ def main(cfg: DictConfig) -> None:
             cube_urdf,
             quader_urdf_path
         )
+        # object_ids sieht so aus:
+        # [
+        #   [pyb_id_0, pos0, orientation0],
+        #   [pyb_id_1, pos1, orientation1],
+        #   ...
+        # ]
+
+        # Jetzt baust du dir die Specs zusammen:
+        # Für Würfel: object_type = "cube", ...
+        # Für Quader: object_type = "quader" (je nachdem, was in
+        #   deinem Ordner objects_root/<object_type> liegt)
+        object_specs = []
+        for i, (pyb_id, pos, ori) in enumerate(object_ids):
+            if i < 4:
+                my_type = "cube"   # Beispiel: 4 Würfel
+            else:
+                my_type = "quader" # der 5. Eintrag
+
+            spec = {
+                "object_type": my_type,
+                "object_id": pyb_id,  # PyBullet-ID übernehmen
+                "position": pos,      # das aus plan_1
+                "orientation": ori    # das aus plan_1
+            }
+            object_specs.append(spec)
+
+        # Nun rufst du anstelle von create_task() dein create_task_from_specs auf
+        task = task_factory.create_task_from_specs(object_specs)
+
+        # Danach: manuelles Absetzen in einer Reihe
+        drop_position = [0.4, 0.0, 0.0]
+        cleanup_grasp_task(bullet_client, robot, task, drop_position, rotation)
+
+        # Task-spezifische Aufräumaktion (Task selbst entfernen)
+        #task.clean(env)
 
         # Hole ggf. Task-Infos
         task_info = task.get_info()
@@ -251,8 +342,8 @@ def main(cfg: DictConfig) -> None:
 
         # Hier nun der manuelle Abbau: 
         # z.B. Objekte an [0.3, -0.3, 0.0] ablegen
-        drop_position = [0.4, 0.0, 0.0]
-        cleanup_plan_1(bullet_client, object_ids, robot, drop_position, rotation)
+        #drop_position = [0.4, 0.0, 0.0]
+        #cleanup_plan_1(bullet_client, object_ids, robot, drop_position, rotation)
 
     # Session beenden
     cv2.destroyAllWindows()

@@ -62,14 +62,21 @@ class GraspObject(SceneObject):
         return valid_pose.matrix
 
 
+# ------------------------------------------------------------
+# In deiner Datei 1 (wo GraspTaskFactory definiert ist)
+# ------------------------------------------------------------
+
 class GraspTaskFactory:
-    def __init__(self, n_objects: int, t_bounds, 
-                 r_bounds: np.ndarray = np.array([[0, 0], [0, 0], [0, 2 * np.pi]]),
-                 grasp_object_factory: GraspObjectFactory = None):
+    def __init__(
+        self, 
+        n_objects: int, 
+        t_bounds, 
+        r_bounds: np.ndarray = np.array([[0, 0], [0, 0], [0, 2 * np.pi]]),
+        grasp_object_factory: GraspObjectFactory = None
+    ):
         self.n_objects = n_objects
         self.t_bounds = t_bounds
         self.r_bounds = r_bounds
-
         self.unique_id_counter = 0
         self.grasp_object_factory = grasp_object_factory
 
@@ -78,6 +85,10 @@ class GraspTaskFactory:
         return self.unique_id_counter - 1
 
     def create_task(self):
+        """
+        Original: Generiert zufällige Objekte 
+        (falls du es behalten willst, kannst du es drinlassen).
+        """
         self.unique_id_counter = 0
         n_objects = np.random.randint(1, self.n_objects + 1)
         object_types = random.choices(self.grasp_object_factory.object_types, k=n_objects)
@@ -101,11 +112,68 @@ class GraspTaskFactory:
         new_t_bounds = np.array(self.t_bounds)
         new_t_bounds[:2, 0] = new_t_bounds[:2, 0] + min_dist
         new_t_bounds[:2, 1] = new_t_bounds[:2, 1] - min_dist
-        #while overlapping:
+        # Hier wäre eigentlich eine Schleife, um 
+        # einen nicht überlappenden Pose zu finden...
+
+        # ... fürs Beispiel nehme ich einfach einen festen Wert:
         random_pose = Affine([0.7, 0.025, 0.125], [0, 0, 0, 1])
-        print(random_pose)
         overlapping = is_overlapping(random_pose, min_dist, objects)
         return random_pose
+
+    # ------------------------------------------------------------
+    # NEU: Überspringt die zufällige Objekterzeugung und nimmt
+    # stattdessen feste (vordefinierte) Spezifikationen entgegen
+    # ------------------------------------------------------------
+    def create_task_from_specs(self, object_specs):
+        """
+        object_specs: Liste von Dictionaries, z.B.
+        [
+          {
+            "object_type": "cube",
+            "object_id": 42,
+            "position": [0.7, 0.0, 0.0],
+            "orientation": [0, 0, 0, 1]  # qx,qy,qz,qw
+          },
+          ...
+        ]
+
+        Hier werden KEINE neuen URDF-Objekte in PyBullet geladen.
+        Wir erzeugen nur die GraspObject-Datenstruktur, 
+        die dann in 'setup(env)' ggf. auf 'env.add_object(...)' ruft.
+        """
+        self.unique_id_counter = 0
+        grasp_objects = []
+
+        for spec in object_specs:
+            object_type = spec["object_type"]
+            # Falls du 'object_id' direkt übernehmen willst, 
+            # müsstest du aber 'create_grasp_object' eigentlich NICHT
+            # mehr aufrufen, denn das würde das URDF noch mal laden.
+            # -> Du kannst es trotzdem tun, wenn du einen Pfad etc. brauchst.
+            manipulation_object = self.grasp_object_factory.create_grasp_object(object_type)
+            
+            # Pose aus den Specs
+            position = spec["position"]
+            orientation = spec["orientation"]
+            
+            # Affine aus Position+Orientierung
+            pose_affine = Affine(translation=position, rotation=orientation)
+            
+            # offset berücksichtigen
+            corrected_pose = manipulation_object.offset @ pose_affine.matrix
+            manipulation_object.pose = corrected_pose
+
+            # unique_id nur intern (nicht PyBullet ID)
+            manipulation_object.unique_id = self.get_unique_id()
+
+            # Falls du die PyBullet-ID übernehmen willst:
+            if "object_id" in spec:
+                manipulation_object.object_id = spec["object_id"]
+
+            grasp_objects.append(manipulation_object)
+
+        return GraspTask(grasp_objects)
+
 
 
 class GraspTask:
