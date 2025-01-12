@@ -13,6 +13,8 @@ from bullet_env.util import setup_bullet_client, stdout_redirected
 from transform.affine import Affine
 from image_util import draw_pose
 from data_util import store_data_grasp
+import random
+
 
 counter = 0 # Global counter for storing data
 
@@ -290,6 +292,27 @@ def cleanup_grasp_task(bullet_client, robot, task, base_drop_position, rotation,
     robot.gripper.open()
 
 
+def execute_random_plan(bullet_client, spawn_position, rotation, cube_urdf, quader_urdf_path):
+    if random.choice([True, False]):
+        print("Running plan_1")
+        object_ids = plan_1(
+            bullet_client,
+            spawn_position,
+            rotation,
+            cube_urdf,
+            quader_urdf_path
+        )
+    else:
+        print("Running plan_2")
+        object_ids = plan_2(
+            bullet_client,
+            spawn_position,
+            rotation,
+            cube_urdf,
+            quader_urdf_path
+        )
+    return object_ids
+
 @hydra.main(version_base=None, config_path="config", config_name="tn_train_data")
 def main(cfg: DictConfig) -> None:
     logger.remove()
@@ -313,22 +336,21 @@ def main(cfg: DictConfig) -> None:
     cube_urdf = "/home/jovyan/data/assets/objects/cube/object.urdf"
     quader_urdf_path = "/home/jovyan/data/assets/objects/quader/object.urdf"
 
-    # Beispiel-Parameter
-    spawn_position = [0.7, 0.0, 0.0]
-    rotation = 45
+
+    # Random spawn position
+    random_x = np.random.choice(np.arange(0.6, 0.8, 0.05))
+    random_y = np.random.choice(np.arange(-0.25, 0.25, 0.05))
+    spawn_position = [random_x, random_y, 0.0]
+    
+    # Random rotation
+    rotation = np.random.choice(np.arange(0, 180, 30))
+
 
     function_params = []
 
     for i in range(cfg.n_scenes):
 
-        # Erzeuge Szene
-        object_ids = plan_2(
-            bullet_client,
-            spawn_position,
-            rotation,
-            cube_urdf,
-            quader_urdf_path
-        )
+        object_ids = execute_random_plan(bullet_client, spawn_position, rotation, cube_urdf, quader_urdf_path)  
 
         robot.home()
         robot.gripper.open()
@@ -348,7 +370,7 @@ def main(cfg: DictConfig) -> None:
         task = task_factory.create_task_from_specs(object_specs)
 
         # Alle Objekte in einer Reihe ablegen
-        drop_position = [0.4, -0.2, 0.0]
+        drop_position = [0.35, -0.2, 0.0]
         
 
         # (Optional) Infos/Oracle
