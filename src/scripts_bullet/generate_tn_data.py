@@ -14,7 +14,7 @@ from transform.affine import Affine
 from image_util import draw_pose
 from data_util import store_data_grasp
 
-j = 1 # Globaler Zähler für die Bildreihenfolge
+counter = 0 # Global counter for storing data
 
 def plan_1(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
     """
@@ -156,7 +156,7 @@ def get_yaw_from_quat(qx, qy, qz, qw) -> float:
     return minimal_angle(yaw)
 
 
-def pick_and_place_object(bullet_client, robot, obj_pos, obj_ori, place_position, _rotation, j, task_info, observations, pose,
+def pick_and_place_object(bullet_client, robot, obj_pos, obj_ori, place_position, _rotation, i, task_info, observations, pose,
                            dataset_directory, store_dataset, camera_factory):
     """
     Greift das Objekt so, dass seine Yaw orientiert wird wie obj_ori (minimaler Drehweg),
@@ -203,47 +203,45 @@ def pick_and_place_object(bullet_client, robot, obj_pos, obj_ori, place_position
 
     # Robot move
         
+    global counter
 
-    if store_dataset:
-        store_data_grasp(j, task_info, observations, pose, dataset_directory)
-        j += 1
     robot.ptp(pre_grasp_pose)
 
     observations = [cam.get_observation() for cam in camera_factory]
     if store_dataset:
-        store_data_grasp(j, task_info, observations, pose, dataset_directory)
-        j += 1
+        store_data_grasp(counter, task_info, observations, pose, dataset_directory)
+        counter+= 1
     robot.lin(grasp_pose)
     robot.gripper.close()
 
     observations = [cam.get_observation() for cam in camera_factory]
     if store_dataset:
-        store_data_grasp(j, task_info, observations, pose, dataset_directory)
-        j += 1
+        store_data_grasp(counter, task_info, observations, pose, dataset_directory)
+        counter+= 1
     robot.lin(pre_grasp_pose)
 
     observations = [cam.get_observation() for cam in camera_factory]
     if store_dataset:
-        store_data_grasp(j, task_info, observations, pose, dataset_directory)
-        j += 1
+        store_data_grasp(counter, task_info, observations, pose, dataset_directory)
+        counter+= 1
     robot.ptp(pre_place_pose)
 
     observations = [cam.get_observation() for cam in camera_factory]
     if store_dataset:
-        store_data_grasp(j, task_info, observations, pose, dataset_directory)
-        j += 1
+        store_data_grasp(counter, task_info, observations, pose, dataset_directory)
+        counter+= 1
     robot.lin(place_pose)
     robot.gripper.open()
 
     observations = [cam.get_observation() for cam in camera_factory]
     if store_dataset:
-        store_data_grasp(j, task_info, observations, pose, dataset_directory)
-        j += 1
+        store_data_grasp(counter, task_info, observations, pose, dataset_directory)
+        counter+= 1
     robot.lin(pre_place_pose)
     observations = [cam.get_observation() for cam in camera_factory]
     if store_dataset:
-        store_data_grasp(j, task_info, observations, pose, dataset_directory)
-        j += 1
+        store_data_grasp(counter, task_info, observations, pose, dataset_directory)
+        counter+= 1
 
 
 def quaternion_from_rotation_z(angle_rad):
@@ -319,6 +317,7 @@ def main(cfg: DictConfig) -> None:
     spawn_position = [0.7, 0.0, 0.0]
     rotation = 45
 
+    function_params = []
 
     for i in range(cfg.n_scenes):
 
