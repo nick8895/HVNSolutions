@@ -8,7 +8,6 @@ import copy
 import cv2
 import math
 from scipy.spatial.transform import Rotation as R
-
 from bullet_env.util import setup_bullet_client, stdout_redirected
 from transform.affine import Affine
 from image_util import draw_pose
@@ -25,7 +24,7 @@ def plan_1(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
     """
     cube_size = 5  # in cm
     quader_size = (10, 5, 5)  # in cm
-    offset = 0.1  # in cm
+    offset = 0.15  # in cm
 
     rad = math.radians(rotation)
     cos_theta = math.cos(rad)
@@ -45,7 +44,7 @@ def plan_1(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
         (0, 0, 0),                           # Würfel A (unten links)
         (cube_size + offset, 0, 0),          # Würfel B (unten rechts)
         (0, 0, cube_size + offset),          # Würfel C (oben auf A)
-        (cube_size + offset, 0, cube_size + offset),  # Würfel D (oben auf B)
+        (cube_size + offset, 0, cube_size + 0.1),  # Würfel D (oben auf B)
     ]
 
     object_ids = []
@@ -140,6 +139,124 @@ def plan_2(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
         else:
             # Quader
             obj_id = bullet_client.loadURDF(quader_urdf, spawn_position, spawn_orientation)
+
+        object_ids.append([obj_id, spawn_position, spawn_orientation])
+
+    return object_ids
+
+def plan_3(bullet_client, base_position, rotation, cube_urdf, quader_urdf):
+    """
+    Ebene 1:
+      - 2 Quader (10 x 5 x 5 cm) nebeneinander, 4 cm Abstand in X-Richtung
+    Ebene 2:
+      - 1 Quader quer (90° zur ersten Ebene), mittig auf Ebene 1
+    Ebene 3:
+      - 2 Würfel (5x5x5 cm) übereinander, zentriert auf dem oberen Quader
+
+    Rückgabe: Liste mit 5 Einträgen:
+      0: Quader unten links
+      1: Quader unten rechts
+      2: Quader oben quer
+      3: Erster Würfel oben
+      4: Zweiter Würfel oben drauf
+    Jeder Eintrag: [obj_id, spawn_pos, spawn_orientation]
+    """
+
+    # Annahmen zu den Dimensionen
+    quader_len  = 10.0  # cm (Länge)
+    quader_b    = 5.0   # cm (Breite)
+    quader_h    = 5.0   # cm (Höhe)
+
+    cube_size   = 5.0   # cm (Würfelkantenlänge)
+    gap         = 2.0   # cm zwischen Quadern der gleichen Ebene
+    offset_z    = 0.1   # cm kleiner Spalt zwischen Ebenen
+    
+    # Globale Rotation um Z
+    rad = math.radians(rotation)
+    cos_theta = math.cos(rad)
+    sin_theta = math.sin(rad)
+
+    def rotate_xy(x, y):
+        """Rotiere Punkt (x,y) um 'rotation' Grad in der XY-Ebene."""
+        rx = x * cos_theta - y * sin_theta
+        ry = x * sin_theta + y * cos_theta
+        return rx, ry
+
+    def quaternion_from_rotation_z(angle_rad):
+        """Erzeuge ein Quaternion für Rotation um Z."""
+        half = angle_rad / 2.0
+        return [0.0, 0.0, math.sin(half), math.cos(half)]
+
+    # -----------------------
+    # Ebene 1: Zwei Quader parallel (L = 10 cm entlang X)
+    #   Quader A bei (0, 0, 0)
+    #   Quader B bei (L + gap, 0, 0) => (10 + 4=14, 0, 0)
+    #   Höhe = 5 cm
+    A_pos = (0.0, 0.0, 0.0)
+    B_pos = (quader_len + gap, 0.0, 0.0)
+
+    # -----------------------
+    # Ebene 2: Ein Quader quer (90° zur Ebene 1).
+    #   Liegt oben auf Ebene 1 => z = 5 + 0.1 = 5.1 cm
+    #   Wir wollen ihn mittig zwischen A & B, also x=7 cm
+    #   Weil er 10 cm lang ist, und jetzt L=10 cm in Y-Richtung (durch 90°-Drehung).
+    #   => Also C=(7, 0, 5.1), orientation = rotation + 90°.
+    top_z_2 = quader_h + offset_z  # 5 + 0.1 = 5.1
+    C_pos = ((A_pos[0] + B_pos[0]) / 2.0, 0.0, top_z_2)  # x=7, y=0
+    
+    # -----------------------
+    # Ebene 3: Zwei WÜRFEL übereinander (je 5 cm hoch)
+    #   Stehen in der Mitte auf dem Quader C.
+    #   Also x=7, y=0, z=(Ebene2-Höhe + QuaderHöhe=5) => 10.1? 
+    #   Da Quader C hat oben z= 5.1 + 5 cm Höhe = 10.1
+    #   Also der erste Würfel: z= 10.1
+    #   Der zweite Würfel: z= 15.2 (nochmal +5.1)
+    #   Falls URDF den Ursprung UNTER dem Objekt hat, reicht z=10.1 bzw. 15.2
+    #   Falls URDF den Ursprung in der Mitte hat, müsstest du +2.5 draufrechnen.
+    
+    top_cube_1_z = top_z_2 + quader_h  # = 5.1 + 5 = 10.1
+    top_cube_2_z = top_cube_1_z + cube_size + offset_z  # 10.1 + 5 + 0.1 = 15.2
+
+    D_pos = (C_pos[0], C_pos[1], top_cube_1_z)
+    E_pos = (C_pos[0], C_pos[1], top_cube_2_z)
+
+    # -----------------------
+    # Sammele alle Positionen in Reihenfolge:
+    #  0: Quader A
+    #  1: Quader B
+    #  2: Quader C (quer)
+    #  3: Würfel D
+    #  4: Würfel E
+    positions = [A_pos, B_pos, C_pos, D_pos, E_pos]
+
+    object_ids = []
+    for i, (px, py, pz) in enumerate(positions):
+        # Rotation um Z
+        # - Ebene1 Quader: i < 2 => rotation + 0
+        # - Ebene2 Quader: i == 2 => rotation + 90
+        # - Ebene3 Würfel: i >= 3 => rotation + 0 (oder +0.0)
+        extra_angle = 0.0
+        if i < 2:  # Quader C
+            extra_angle = 90.0  # quer
+        
+        angle_rad = math.radians(rotation + extra_angle)
+        spawn_orientation = quaternion_from_rotation_z(angle_rad)
+
+        # XY verschieben
+        rx, ry = rotate_xy(px, py)
+        spawn_position = [
+            base_position[0] + rx / 100.0,
+            base_position[1] + ry / 100.0,
+            base_position[2] + pz / 100.0
+        ]
+
+        # Laden
+        if i < 3:
+            # i=0..2 => Quader (A,B,C)
+            obj_id = bullet_client.loadURDF(quader_urdf, spawn_position, spawn_orientation)
+        else:
+            # i=3..4 => Würfel (D,E)
+            obj_id = bullet_client.loadURDF(cube_urdf, spawn_position, spawn_orientation)
 
         object_ids.append([obj_id, spawn_position, spawn_orientation])
 
@@ -256,7 +373,7 @@ def cleanup_grasp_task(bullet_client, robot, task, base_drop_position, rotation,
     Greift alle Objekte in umgekehrter Reihenfolge und legt sie an base_drop_position ab,
     parallel zur Y-Achse versetzt.
     """
-    y_offset = 0.1
+    y_offset = 0.125
 
     for i, grasp_obj in enumerate(reversed(task.grasp_objects)):
         drop_position = [
@@ -291,9 +408,9 @@ def cleanup_grasp_task(bullet_client, robot, task, base_drop_position, rotation,
 
     robot.gripper.open()
 
-
 def execute_random_plan(bullet_client, spawn_position, rotation, cube_urdf, quader_urdf_path):
-    if random.choice([True, False]):
+    choice = random.choice([1, 2, 3])
+    if choice == 1:
         print("Running plan_1")
         object_ids = plan_1(
             bullet_client,
@@ -302,9 +419,18 @@ def execute_random_plan(bullet_client, spawn_position, rotation, cube_urdf, quad
             cube_urdf,
             quader_urdf_path
         )
-    else:
+    elif choice == 2:
         print("Running plan_2")
         object_ids = plan_2(
+            bullet_client,
+            spawn_position,
+            rotation,
+            cube_urdf,
+            quader_urdf_path
+        )
+    else:
+        print("Running plan_3")
+        object_ids = plan_3(
             bullet_client,
             spawn_position,
             rotation,
@@ -343,7 +469,7 @@ def main(cfg: DictConfig) -> None:
     spawn_position = [random_x, random_y, 0.0]
     
     # Random rotation
-    rotation = np.random.choice(np.arange(0, 180, 30))
+    rotation = np.random.choice(np.arange(0, 359, 30))
 
 
     function_params = []
@@ -370,7 +496,7 @@ def main(cfg: DictConfig) -> None:
         task = task_factory.create_task_from_specs(object_specs)
 
         # Alle Objekte in einer Reihe ablegen
-        drop_position = [0.35, -0.2, 0.0]
+        drop_position =  [0.35, -0.28, 0.0]
         
 
         # (Optional) Infos/Oracle
