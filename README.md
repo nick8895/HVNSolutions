@@ -1,10 +1,7 @@
 # Robot programming HKA WS 2024
+Dieses Repository ist im Zuge der Vorlesung Roboterprogrammierung WS24/25 entstanden. Es beinhaltet die genutzte PyBullet-Umgebung sowie die bereitgestellten Tensorflow-Dateien. Für eine unabhängige Arbeitsumgebung, wurden die beiden bereitgestellten Dockerimages zu einem zusammengefasst, sodass sowohl tensorflow als auch PyBulle in einem Container verwendet werden können.  
+## Aufgabe 
 
-This repository contains the code for the robot programming course (the policy learning part) at the University of Applied Sciences Karlsruhe.
-
-We will use and update this repository throughout the course. Hello.
-
-## Quick start
 
 ### Environment setup
 
