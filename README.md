@@ -7,7 +7,7 @@ Zu Auswahl stehen hier Reinforcementlearning oder Immitationlearning. Hierbei is
 ## build des Containers
 Aus den zur Verfügung gestellten Dockerfiles wurde ein Dockerfile generiert, damit alle Funktionen aus PyBullet und Tensorflow und damit alle Dateien genutzt werden können. 
 Bau des Containers: 
-**Requirements:** have docker installed i
+
 
 **Note:** The default settings are for nvidia GPU support. If you don't have an nvidia GPU, open up `build_image.sh` and set the `render` argument to `base`. Also, remove the `--gpus all` flag from the `docker run` command in `run_container.sh`.
 
