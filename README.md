@@ -6,7 +6,7 @@ Zu Auswahl stehen hier Reinforcementlearning oder Immitationlearning. Hierbei is
 
 ## Bauen des Containers und Starten des Containers 
 Aus den zur Verfügung gestellten Dockerfiles wurde ein Dockerfile generiert, damit alle Funktionen aus PyBullet und Tensorflow und damit alle Dateien genutzt werden können. 
-## Bau des Containers: 
+# Bau des Containers: 
 ```bash
 ./build_image_HVN.sh
 ```
