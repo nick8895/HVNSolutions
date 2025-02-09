@@ -28,7 +28,7 @@ Hierin befindet sich die generate_tn_data.py, welche sich mit folgendem Befehl s
 python generate_tn_data.py 
 ```
 
-Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Position mit einer zufälligen Rotation generiert. 
+Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Position mit einer zufälligen Rotation generiert im definierten Arbeitsraum gespawnt. Die Anzahl wie oft die einzelnen Konfigurationen abgebaut werden entspricht der in der Config-Datei angegeben Szenen. 
 
 
 
