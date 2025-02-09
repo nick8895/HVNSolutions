@@ -32,7 +32,9 @@ Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Posit
 
 <p align="center">
   <img src="block_variants.png" alt="Bild 1" width="800">
+  <figcaption>Blockkonfigurationen zur Datengenerierung</figcaption>
 </p>
+
 
 
 
