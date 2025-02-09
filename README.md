@@ -7,22 +7,29 @@ Zu Auswahl stehen hier Reinforcementlearning oder Immitationlearning. Hierbei is
 ## build des Containers
 Aus den zur Verfügung gestellten Dockerfiles wurde ein Dockerfile generiert, damit alle Funktionen aus PyBullet und Tensorflow und damit alle Dateien genutzt werden können. 
 Bau des Containers: 
-
-Build the docker image with
-
 ```bash
 ./build_image_HVN.sh
 ```
 
-Run the container with
+Container starten 
 ```bash
-./run_container.sh
+./run_container_HVN.sh
 ```
 
-Check whether you can open a window from the container by running
+Nachdem die Befehle im Terminal eingegeben worden sind, befindet man sich im Workspace des Containers. Dieser ist in je einen Ordner für die PyBullet-Umgebung und die Tensorflow-Anwendungen unterteilt.
+
+## Starten der Simulation 
+Zunächst muss man in den entsprechenden Ordner navigieren:
 ```bash
-python view_noise_image.py
+cd scripts_bullet 
 ```
+Hierin befindet sich die generate_tn_data.py, welche sich mit dem Befehl:
+```bash
+python generate_tn_data.py 
+```
+starten lässt. 
+Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Position mit einer zufälligen Rotation generiert. 
+
 A window should pop up showing a random noise image. You can close it by pressing any key, while the window is focused.
 
 ### Basics
