@@ -23,11 +23,11 @@ Zunächst muss man in den entsprechenden Ordner navigieren:
 ```bash
 cd scripts_bullet 
 ```
-Hierin befindet sich die generate_tn_data.py, welche sich mit dem Befehl:
+Hierin befindet sich die generate_tn_data.py, welche sich mit folgendem Befehl starten lässt: 
 ```bash
 python generate_tn_data.py 
 ```
-starten lässt. 
+
 Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Position mit einer zufälligen Rotation generiert. 
 
 A window should pop up showing a random noise image. You can close it by pressing any key, while the window is focused.
