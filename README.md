@@ -32,7 +32,3 @@ Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Posit
 
 
 
-### Basics
-Check out the `basics.py` script to get familiar with the API we use and the `Affine` class.
-
-If you want to understand a bit more how everything works under the hood, check out the scripts in the `bullet_env` folder as well as the `transform.py` file.
