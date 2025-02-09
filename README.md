@@ -4,14 +4,14 @@ Dieses Repository ist im Zuge der Vorlesung Roboterprogrammierung WS24/25 entsta
 Die Aufgabe besteht darin, eine beliebige Klotzkonfiguration aus mindestens 5 Klötzen mit einem Roboter abzubauen. Dabei dürfen die aufgebauten Klötze nicht zusammenstürzen.
 Zu Auswahl stehen hier Reinforcementlearning oder Immitationlearning. Hierbei ist die Entscheidung auf das Immitationlearning gefallen, bei dem ein Transporter Network genutzt wird. Das Netz lernt aus vorgeführten Greifpositionen, welche in Form von RGB und Tiefendaten aufgenommen werden. 
 
-## build des Containers
+## Bauen des Containers und Starten des Containers 
 Aus den zur Verfügung gestellten Dockerfiles wurde ein Dockerfile generiert, damit alle Funktionen aus PyBullet und Tensorflow und damit alle Dateien genutzt werden können. 
-Bau des Containers: 
+## Bau des Containers: 
 ```bash
 ./build_image_HVN.sh
 ```
 
-Container starten 
+## Container starten 
 ```bash
 ./run_container_HVN.sh
 ```
@@ -30,7 +30,7 @@ python generate_tn_data.py
 
 Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Position mit einer zufälligen Rotation generiert. 
 
-A window should pop up showing a random noise image. You can close it by pressing any key, while the window is focused.
+
 
 ### Basics
 Check out the `basics.py` script to get familiar with the API we use and the `Affine` class.
