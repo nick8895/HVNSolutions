@@ -30,10 +30,11 @@ python generate_tn_data.py
 
 Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Position mit einer zufälligen Rotation generiert im definierten Arbeitsraum gespawnt. Die Anzahl wie oft die einzelnen Konfigurationen abgebaut werden entspricht der in der Config-Datei angegeben Szenen. 
 
-<p align="center">
+<div align="center">
   <img src="block_variants.png" alt="Bild 1" width="800">
-  <figcaption>Blockkonfigurationen zur Datengenerierung</figcaption>
-</p>
+  <p style="font-size:14px; color:gray;"><em>Blockkonfigurationen zur Datengenerierung</em></p>
+</div>
+
 
 
 
