@@ -32,10 +32,14 @@ Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Posit
 
 <div align="center">
   <img src="block_variants.png" alt="Bild 1" width="800">
-  <p style="font-size:14px; color:gray;"><em>Blockkonfigurationen zur Datengenerierung</em></p>
+  <p style="font-size:12px; color:gray;"><em>Blockkonfigurationen zur Datengenerierung</em></p>
 </div>
 
 
+## Projektumsetzung 
+generate_tn_data beschreiben, aufbau und beschreibung der einzelnen funktionen/zweck
 
+train_tn_data.py: trainieren des netzes aus RGB und Tiefendaten, welche zuvor als hdf5 datei gespeichert und konvertiert worden sind 
 
-
+tn_test.py: 3 bilder aufnehmen, orthpgrafische projektion erzeugen -> combined images, modell laden (combined image übergebne), output des netzes, 
+## 
