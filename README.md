@@ -4,9 +4,10 @@ Dieses Repository ist im Zuge der Vorlesung Roboterprogrammierung WS24/25 entsta
 Die Aufgabe besteht darin, eine beliebige Klotzkonfiguration aus mindestens 5 Klötzen mit einem Roboter abzubauen. Dabei dürfen die aufgebauten Klötze nicht zusammenstürzen.
 Zu Auswahl stehen hier Reinforcementlearning oder Immitationlearning. Hierbei ist die Entscheidung auf das Immitationlearning gefallen, bei dem ein Transporter Network genutzt wird. Das Netz lernt aus vorgeführten Greifpositionen, welche in Form von RGB und Tiefendaten aufgenommen werden. 
 
-## Bauen des Containers und Starten des Containers 
+
+# Bauen und Starten des Containers 
 Aus den zur Verfügung gestellten Dockerfiles wurde ein Dockerfile generiert, damit alle Funktionen aus PyBullet und Tensorflow und damit alle Dateien genutzt werden können. 
-# Bau des Containers: 
+## Bau des Containers: 
 ```bash
 ./build_image_HVN.sh
 ```
