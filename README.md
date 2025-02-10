@@ -37,7 +37,8 @@ Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Posit
 </div>
 
 
-## Projektumsetzung 
+# Projektumsetzung 
+Im folgenden werden die einzelnen Skripte und deren Aufgaben(?) beschrieben. Die Grundlage übernimmt die "gernerate_tn_data.py" in der Daten generiert und je nach gesetzter Flag im jeweiligen Verzeichnis abgespeichert werden. Die generierten Daten werden durch die "convert_dataset.py" in das richtige Formaet(?) konvertiert. 
 generate_tn_data beschreiben, aufbau und beschreibung der einzelnen funktionen/zweck
 
 train_tn_data.py: trainieren des netzes aus RGB und Tiefendaten, welche zuvor als hdf5 datei gespeichert und konvertiert worden sind 
