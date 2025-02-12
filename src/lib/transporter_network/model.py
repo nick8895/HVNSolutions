@@ -115,3 +115,5 @@ class TransporterNetworkAttention(tf.keras.Model):
         crop_end = tf.cast(crop_start + self.crop_size, dtype=tf.int32)
         cropped_inputs = inputs[..., crop_start[0]:crop_end[0], crop_start[1]:crop_end[1], :]
         return cropped_inputs
+    
+

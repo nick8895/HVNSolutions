@@ -14,8 +14,7 @@ from transform.affine import Affine
 @hydra.main(config_path="config", config_name="train_tn")
 def main(cfg: DictConfig) -> None:
     if cfg.debug:
-        physical_devices = tf.config.list_physical_devices('base')
-        tf.config.experimental.set_memory_growth(physical_devices[0], True)
+        physical_devices = tf.config.list_physical_devices('GPU')
         tf.config.experimental_run_functions_eagerly(True)
     
     logger.remove()
@@ -32,13 +31,26 @@ def main(cfg: DictConfig) -> None:
     
     os.makedirs(cfg.model_path, exist_ok=True)
 
-    model_files_prefix = f'{cfg.model_path}/model'
+    model_files_prefix = f'{cfg.model_path}'
 
     if os.path.exists(f'{model_files_prefix}.index'):
         model.load_weights(model_files_prefix)
         logger.info(f'Loaded model from {model_files_prefix}')
     else:
         logger.info(f'No model found at {model_files_prefix}, training from scratch')
+        for _ in range(5):
+            model.fit(data_generator, epochs=10)
+            model.save_weights(model_files_prefix)
+            print(_)  # Print epoch number
+            inputs = data_generator[0][0][0]
+            attentions, colormaps_with_pose = validate_and_visualize(model, inputs, image_stats, cfg.workspace_bounds)
+
+            for attention, colormap_with_pose in zip(attentions, colormaps_with_pose):
+                combined = np.concatenate([attention, colormap_with_pose], axis=1)
+                cv2.imshow("result", combined)
+                key = cv2.waitKey(0)
+                if key == ord('q'):
+                    return
 
     inputs = data_generator[0][0][0]
     attentions, colormaps_with_pose = validate_and_visualize(model, inputs, image_stats, cfg.workspace_bounds)
@@ -50,19 +62,7 @@ def main(cfg: DictConfig) -> None:
         if key == ord('q'):
             return
 
-    for _ in range(5):
-        model.fit(data_generator, epochs=10)
-        model.save_weights(model_files_prefix)
 
-        inputs = data_generator[0][0][0]
-        attentions, colormaps_with_pose = validate_and_visualize(model, inputs, image_stats, cfg.workspace_bounds)
-
-        for attention, colormap_with_pose in zip(attentions, colormaps_with_pose):
-            combined = np.concatenate([attention, colormap_with_pose], axis=1)
-            cv2.imshow("result", combined)
-            key = cv2.waitKey(0)
-            if key == ord('q'):
-                return
     
 
 def validate_and_visualize(model, inputs, image_stats, workspace_bounds):

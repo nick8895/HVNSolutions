@@ -463,18 +463,20 @@ def main(cfg: DictConfig) -> None:
     quader_urdf_path = "/home/jovyan/data/assets/objects/quader/object.urdf"
 
 
-    # Random spawn position
-    random_x = np.random.choice(np.arange(0.6, 0.8, 0.05))
-    random_y = np.random.choice(np.arange(-0.25, 0.25, 0.05))
-    spawn_position = [random_x, random_y, 0.0]
     
-    # Random rotation
-    rotation = np.random.choice(np.arange(0, 359, 30))
 
 
     function_params = []
 
     for i in range(cfg.n_scenes):
+
+            # Random spawn position
+        random_x = np.random.choice(np.arange(0.6, 0.8, 0.05))
+        random_y = np.random.choice(np.arange(-0.25, 0.25, 0.05))
+        spawn_position = [random_x, random_y, 0.0]
+        
+        # Random rotation
+        rotation = np.random.choice(np.arange(0, 359, 30))
 
         object_ids = execute_random_plan(bullet_client, spawn_position, rotation, cube_urdf, quader_urdf_path)  
 
