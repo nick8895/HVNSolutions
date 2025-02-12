@@ -18,7 +18,7 @@ Wie bereits erwähnt, wird ein Dockercontainer verwendet. Dies ermöglicht ein s
 Nachdem die Befehle im Terminal eingegeben worden sind, befindet man sich im Workspace des Containers. Dieser ist in je einen Ordner für die PyBullet-Umgebung und die Tensorflow-Anwendungen unterteilt.
 
 ## Starten der Simulation 
-Zunächst muss man in den entsprechenden Ordner navigieren:
+Um die Simulation starten und Daten aufnehmen zu können muss zunächst in den entsprechenden Ordner navigiert werden: 
 ```bash
 cd scripts_bullet 
 ```
@@ -26,7 +26,6 @@ Hierin befindet sich die generate_tn_data.py, welche sich mit folgendem Befehl s
 ```bash
 python generate_tn_data.py 
 ```
-
 Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Position mit einer zufälligen Rotation generiert im definierten Arbeitsraum gespawnt. Die Anzahl wie oft die einzelnen Konfigurationen abgebaut werden entspricht der in der Config-Datei angegeben Szenen. 
 
 <div align="center">
@@ -34,7 +33,15 @@ Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Posit
   <p style="font-size:12px; color:gray;"><em>Blockkonfigurationen zur Datengenerierung</em></p>
 </div>
 
-
+## Modell Trainieren 
+Um das Modell zu trainieren muss analog zur Simulation in den Tensorflow-Ordner navigiert werden: 
+```bash
+cd scripts_tf
+```
+Dort befinden sich diverse Skripte, welche gestartet werden können. Für das Training wird das train_tn.py ausgeführt: 
+```bash
+python train_tn.py
+```
 # Projektumsetzung 
 Im folgenden werden die einzelnen Skripte und deren Aufgaben(?) beschrieben. Die Grundlage übernimmt die "gernerate_tn_data.py" in der Daten generiert und je nach gesetzter Flag im jeweiligen Verzeichnis abgespeichert werden. Die generierten Daten werden durch die "convert_dataset.py" in das richtige Formaet(?) konvertiert. 
 generate_tn_data beschreiben, aufbau und beschreibung der einzelnen funktionen/zweck
