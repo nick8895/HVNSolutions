@@ -33,7 +33,7 @@ Nun wird zufällig eine der drei Klotzkonfigurationen an einer zufälligen Posit
   <p style="font-size:12px; color:gray;"><em>Blockkonfigurationen zur Datengenerierung</em></p>
 </div>
 
-## Modell Trainieren 
+## Modell trainieren 
 Um das Modell zu trainieren muss analog zur Simulation in den Tensorflow-Ordner navigiert werden: 
 ```bash
 cd scripts_tf
@@ -42,3 +42,14 @@ Dort befinden sich diverse Skripte, welche gestartet werden können. Für das Tr
 ```bash
 python train_tn.py
 ```
+
+## Modell testen 
+Um das Modell zu testen, muss in den Tensorflow-Ordner navigiert werden: 
+```bash
+cd scripts_tf
+```
+Dort befindet sich die Py-Datei tn_test.py. Für den Test wid das tn_test.py ausgeführt:
+```bash
+python tn_test.py
+```
+
