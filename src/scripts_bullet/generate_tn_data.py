@@ -463,8 +463,6 @@ def main(cfg: DictConfig) -> None:
     quader_urdf_path = "/home/jovyan/data/assets/objects/quader/object.urdf"
 
 
-    
-
 
     function_params = []
 
@@ -476,7 +474,7 @@ def main(cfg: DictConfig) -> None:
         spawn_position = [random_x, random_y, 0.0]
         
         # Random rotation
-        rotation = np.random.choice(np.arange(0, 359, 30))
+        rotation = np.random.choice(np.arange(0, 360, 30))
 
         object_ids = execute_random_plan(bullet_client, spawn_position, rotation, cube_urdf, quader_urdf_path)  
 
@@ -516,9 +514,13 @@ def main(cfg: DictConfig) -> None:
             image_copy = copy.deepcopy(observations[0]['rgb'])
             depth_copy = copy.deepcopy(observations[0]['depth'])
             draw_pose(observations[0]['extrinsics'], pose, observations[0]['intrinsics'], image_copy)
-            #cv2.imshow('rgb', image_copy)
+            cv2.imshow('rgb', image_copy)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
             depth_copy = depth_copy / 2.0
-            #cv2.imshow('depth', depth_copy)
+            cv2.imshow('depth', depth_copy)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
             #key_pressed = cv2.waitKey(0)
             #if key_pressed == ord('q'):

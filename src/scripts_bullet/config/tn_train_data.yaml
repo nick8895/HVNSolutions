@@ -10,4 +10,4 @@ render: true
 store_dataset: false
 dataset_directory: ${data_root}/datasets/tn_train_data
 
-n_scenes: 5
+n_scenes: 3
